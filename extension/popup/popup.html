@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 AI Web Summarizer</h1>
+        </div>
+        
+        <div class="controls">
+            
+            <div class="form-group">
+                <label for="length">Summary Length:</label>
+                <select id="length">
+                    <option value="short">Short (2-3 sentences)</option>
+                    <option value="medium" selected>Medium (Paragraph)</option>
+                    <option value="long">Long (Detailed)</option>
+                </select>
+            </div>
+            
+            <button id="summarize-btn" class="btn-primary">
+                📄 Summarize This Page
+            </button>
+        </div>
+        
+        <div class="content">
+            <div id="loading" class="loading hidden">
+                <div class="spinner"></div>
+                <p>Analyzing page content...</p>
+            </div>
+            
+            <div id="error" class="error hidden">
+                <h3>❌ Error</h3>
+                <p id="error-message"></p>
+                <button id="retry-btn" class="btn-secondary">Try Again</button>
+            </div>
+            
+            <div id="result" class="result hidden">
+                <div class="result-header">
+                    <h3>📋 Summary</h3>
+                    <div class="meta">
+                        <span id="word-count"></span>
+                        <span id="provider-used"></span>
+                    </div>
+                </div>
+                <div id="summary-text" class="summary"></div>
+                <div class="result-actions">
+                    <button id="copy-btn" class="btn-secondary">📋 Copy</button>
+                    <button id="new-summary-btn" class="btn-secondary">🔄 New Summary</button>
+                </div>
+            </div>
+            
+            <div id="welcome" class="welcome">
+                <h3>Welcome! 👋</h3>
+                <p>This extension helps you quickly understand webpage content using AI.</p>
+                <div class="features">
+                    <div class="feature">
+                        <span class="feature-icon">⚡</span>
+                        <span>Fast AI-powered summaries</span>
+                    </div>
+                    <div class="feature">
+                        <span class="feature-icon">🎯</span>
+                        <span>Extracts key points automatically</span>
+                    </div>
+                    <div class="feature">
+                        <span class="feature-icon">🔧</span>
+                        <span>Customizable length & provider</span>
+                    </div>
+                </div>
+                <p class="tip"><strong>Tip:</strong> Click "Summarize This Page" to get started!</p>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>Powered by Google Gemini</p>
+        </div>
+    </div>
+    
+    <script src="popup.js"></script>
+</body>
+</html>
