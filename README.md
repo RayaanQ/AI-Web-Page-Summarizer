@@ -1,12 +1,11 @@
 # AI-Web-Page-Summarizer
 
 ⚙️ Backend Setup
-📁 1. Navigate to the Backend Directory
-cd backend
+
+📁 1. Navigate to the Backend Directory: cd backend
 
 📦 2. Install Python Dependencies
-Make sure you have Python 3.9+ and pip installed.
-pip install -r requirements.txt
+Make sure you have Python 3.9+ and pip installed: pip install -r requirements.txt
 
 🔐 3. Configure Environment Variables
 Create a .env file in the backend directory and add your API key(s):
