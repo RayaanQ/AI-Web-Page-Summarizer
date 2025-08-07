@@ -57,9 +57,38 @@ def get_summary_prompt(length: str, content: str, title: str = None) -> str:
     """Generate appropriate prompt based on summary length preference"""
     
     length_instructions = {
-        "short": "Provide a concise 2-3 sentence summary highlighting only the main points.",
-        "medium": "Provide a comprehensive paragraph summary covering the key points and important details.",
-        "long": "Provide a detailed summary with multiple paragraphs covering main points, supporting details, and key takeaways."
+        "short": """Provide a concise 2-3 sentence summary highlighting only the main points. Format as:
+        • Main point 1
+        • Main point 2
+        • Key conclusion""",
+        "medium": """Provide a comprehensive summary covering the key points and important details. Format as:
+        
+        **Main Topic:** Brief description
+        
+        **Key Points:**
+        • Point 1 with brief explanation
+        • Point 2 with brief explanation
+        • Point 3 with brief explanation
+        
+        **Conclusion:** Final takeaway or outcome""",
+        "long": """Provide a detailed summary with comprehensive coverage. Format as:
+        
+        **Overview:** Brief introduction to the topic
+        
+        **Main Arguments/Points:**
+        • Key point 1: Detailed explanation
+        • Key point 2: Detailed explanation
+        • Key point 3: Detailed explanation
+        
+        **Supporting Evidence:**
+        • Important data or facts
+        • Statistics or examples mentioned
+        
+        **Key Takeaways:**
+        • Actionable insight 1
+        • Actionable insight 2
+        
+        **Conclusion:** Final summary and implications"""
     }
     
     base_prompt = f"""Please summarize the following webpage content. {length_instructions[length]}
@@ -69,13 +98,14 @@ Title: {title or "Not provided"}
 Content:
 {content[:8000]}  # Limit content to prevent token overflow
 
-Focus on:
-- Main arguments or points
-- Key facts and data
-- Important conclusions or outcomes
-- Actionable insights if applicable
-
-Provide a clear, well-structured summary that captures the essence of the content."""
+Important formatting guidelines:
+- Use bullet points (•) for lists
+- Use **bold** for section headers
+- Keep each bullet point concise but informative
+- Focus on the most important information
+- Make it scannable and easy to read
+- Do not include any introductory phrases like "Here's a summary" or "This article discusses"
+- Start directly with the formatted content"""
     
     return base_prompt
 

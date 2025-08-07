@@ -235,7 +235,7 @@ class WebSummarizerPopup {
         this.hideAllStates();
         this.elements.result.classList.remove('hidden');
         
-        this.elements.summaryText.textContent = data.summary;
+        this.elements.summaryText.innerHTML = marked.parse(data.summary);
         this.elements.wordCount.textContent = `${data.word_count} words`;
         
         this.elements.summarizeBtn.disabled = false;
@@ -291,7 +291,7 @@ class WebSummarizerPopup {
         document.body.removeChild(textArea);
     }
     
-    //Handle new summary request
+//Handle new summary request
     handleNewSummary() {
         this.elements.welcome.classList.remove('hidden');
         this.hideAllStates();
