@@ -1,10 +1,14 @@
 //Background Service Worker that Handles extension lifecycle and communication between components
 //Background service worker for managing extension state
 
-class BackgroundService {
+// Enhanced Background Service Worker for Chatbot
+// Manages sessions, API communication, and extension lifecycle
+
+class ChatbotBackgroundService {
     constructor() {
         this.apiUrl = 'http://localhost:8000';
         this.activeTabContent = new Map();
+        this.activeSessions = new Map();
         
         this.init();
     }
@@ -12,9 +16,9 @@ class BackgroundService {
     init() {
         this.setupEventListeners();
         this.checkApiHealth();
+        this.setupPeriodicCleanup();
     }
     
-    //Set up event listeners for various Chrome extension events
     setupEventListeners() {
         // Handle extension installation
         chrome.runtime.onInstalled.addListener((details) => {
@@ -24,7 +28,7 @@ class BackgroundService {
         // Handle messages from content scripts and popup
         chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             this.handleMessage(request, sender, sendResponse);
-            return true; // Keep message channel open for async responses
+            return true;
         });
         
         // Handle tab updates
@@ -35,23 +39,25 @@ class BackgroundService {
         // Handle tab removal
         chrome.tabs.onRemoved.addListener((tabId) => {
             this.activeTabContent.delete(tabId);
+            // Clean up any sessions associated with this tab
+            this.cleanupTabSessions(tabId);
         });
         
-        // Handle browser action click (if popup fails to load)
+        // Handle browser action click
         chrome.action.onClicked.addListener((tab) => {
             this.handleActionClick(tab);
         });
     }
     
-    //Handle extension installation and updates
+    // Enhanced install handler
     handleInstall(details) {
-        console.log('AI Web Summarizer installed/updated:', details.reason);
+        console.log('AI Web Chatbot installed/updated:', details.reason);
         
         if (details.reason === 'install') {
-            // Set default settings
             chrome.storage.sync.set({
-                provider: 'Google Gemini',
                 length: 'medium',
+                chatHistory: true,
+                followupQuestions: true,
                 firstRun: true
             });
             
@@ -62,8 +68,7 @@ class BackgroundService {
         }
     }
     
-    //Handle messages from content scripts and popup
-
+    // Enhanced message handler
     async handleMessage(request, sender, sendResponse) {
         try {
             switch (request.action) {
@@ -87,6 +92,21 @@ class BackgroundService {
                     sendResponse({ success: true, data: summary });
                     break;
                     
+                case 'chat':
+                    const chatResponse = await this.sendChatMessage(request.data);
+                    sendResponse({ success: true, data: chatResponse });
+                    break;
+                    
+                case 'getSession':
+                    const sessionInfo = await this.getSessionInfo(request.sessionId);
+                    sendResponse({ success: true, data: sessionInfo });
+                    break;
+                    
+                case 'deleteSession':
+                    const deleted = await this.deleteSession(request.sessionId);
+                    sendResponse({ success: true, data: { deleted } });
+                    break;
+                    
                 default:
                     sendResponse({ success: false, error: 'Unknown action' });
             }
@@ -96,48 +116,52 @@ class BackgroundService {
         }
     }
     
-    //Handle content script ready notification
-    
+    // Content script ready handler
     handleContentScriptReady(request, sender) {
         if (sender.tab) {
             console.log(`Content script ready for tab ${sender.tab.id}: ${request.url}`);
         }
     }
     
-    //Handle tab updates
-
+    // Enhanced tab update handler
     handleTabUpdate(tabId, changeInfo, tab) {
-        // Clear cached content when page changes
         if (changeInfo.url) {
             this.activeTabContent.delete(tabId);
+            this.cleanupTabSessions(tabId);
         }
         
-        // Update badge text based on content availability
         if (changeInfo.status === 'complete') {
             this.updateTabBadge(tabId, tab);
         }
     }
     
-    //Handle action button click (fallback)
-    handleActionClick(tab) {
-        console.log('Extension icon clicked for tab:', tab.id);
-        // This is a fallback - normally the popup should handle this
+    // Clean up sessions for a specific tab
+    cleanupTabSessions(tabId) {
+        for (const [sessionId, sessionData] of this.activeSessions.entries()) {
+            if (sessionData.tabId === tabId) {
+                this.activeSessions.delete(sessionId);
+            }
+        }
     }
     
-    //Extract content from specified tab
+    // Action button click handler
+    handleActionClick(tab) {
+        console.log('Extension icon clicked for tab:', tab.id);
+        // Popup should handle this, but we can add fallback behavior here
+    }
+    
+    // Enhanced content extraction
     async extractContentFromTab(tabId) {
         try {
-            // Check if we have cached content
             if (this.activeTabContent.has(tabId)) {
                 return this.activeTabContent.get(tabId);
             }
             
-            // Execute content extraction script
             const results = await chrome.scripting.executeScript({
                 target: { tabId },
                 func: () => {
                     if (window.aiWebSummarizerExtractor) {
-                        return window.aiWebSummarizerExtractor.extractPageContent();
+                        return window.aiWebSummarizerExtractor.extractStructuredContent();
                     }
                     throw new Error('Content extractor not available');
                 }
@@ -157,7 +181,7 @@ class BackgroundService {
         }
     }
     
-    //Check API server health
+    // Enhanced API health check
     async checkApiHealth() {
         try {
             const response = await fetch(`${this.apiUrl}/`, {
@@ -184,31 +208,7 @@ class BackgroundService {
         }
     }
     
-    //Update tab badge to show status
-    async updateTabBadge(tabId, tab) {
-        try {
-            if (!tab.url || tab.url.startsWith('chrome://')) {
-                chrome.action.setBadgeText({ text: '', tabId });
-                return;
-            }
-            
-            // Check if content is available
-            const hasContent = this.activeTabContent.has(tabId);
-            
-            if (hasContent) {
-                chrome.action.setBadgeText({ text: '✓', tabId });
-                chrome.action.setBadgeBackgroundColor({ color: '#28a745', tabId });
-            } else {
-                chrome.action.setBadgeText({ text: '', tabId });
-            }
-            
-        } catch (error) {
-            // Ignore badge errors
-            console.log('Badge update error:', error);
-        }
-    }
-    
-    //Forward summarization request to API
+    // Forward summarization request to enhanced API
     async summarizeContent(requestData) {
         try {
             const response = await fetch(`${this.apiUrl}/summarize`, {
@@ -224,17 +224,141 @@ class BackgroundService {
                 throw new Error(errorData.detail || `API Error: ${response.status}`);
             }
             
-            return await response.json();
+            const result = await response.json();
+            
+            // Store session info locally for quick access
+            if (result.session_id) {
+                this.activeSessions.set(result.session_id, {
+                    id: result.session_id,
+                    createdAt: Date.now(),
+                    tabId: null // We don't have tab ID here, but could be added
+                });
+            }
+            
+            return result;
             
         } catch (error) {
             console.error('Summarization API error:', error);
             throw error;
         }
     }
+    
+    // Send chat message to API
+    async sendChatMessage(requestData) {
+        try {
+            const response = await fetch(`${this.apiUrl}/chat`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(requestData)
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.detail || `Chat API Error: ${response.status}`);
+            }
+            
+            return await response.json();
+            
+        } catch (error) {
+            console.error('Chat API error:', error);
+            throw error;
+        }
+    }
+    
+    // Get session information
+    async getSessionInfo(sessionId) {
+        try {
+            const response = await fetch(`${this.apiUrl}/session/${sessionId}`, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json'
+                }
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.detail || `Session API Error: ${response.status}`);
+            }
+            
+            return await response.json();
+            
+        } catch (error) {
+            console.error('Session info API error:', error);
+            throw error;
+        }
+    }
+    
+    // Delete session
+    async deleteSession(sessionId) {
+        try {
+            const response = await fetch(`${this.apiUrl}/session/${sessionId}`, {
+                method: 'DELETE'
+            });
+            
+            if (response.ok) {
+                this.activeSessions.delete(sessionId);
+                return true;
+            }
+            
+            return false;
+            
+        } catch (error) {
+            console.error('Delete session error:', error);
+            return false;
+        }
+    }
+    
+    // Enhanced badge management
+    async updateTabBadge(tabId, tab) {
+        try {
+            if (!tab.url || tab.url.startsWith('chrome://')) {
+                chrome.action.setBadgeText({ text: '', tabId });
+                return;
+            }
+            
+            const hasContent = this.activeTabContent.has(tabId);
+            const sessionCount = Array.from(this.activeSessions.values())
+                .filter(session => session.tabId === tabId).length;
+            
+            if (sessionCount > 0) {
+                chrome.action.setBadgeText({ text: `${sessionCount}`, tabId });
+                chrome.action.setBadgeBackgroundColor({ color: '#28a745', tabId });
+            } else if (hasContent) {
+                chrome.action.setBadgeText({ text: '●', tabId });
+                chrome.action.setBadgeBackgroundColor({ color: '#667eea', tabId });
+            } else {
+                chrome.action.setBadgeText({ text: '', tabId });
+            }
+            
+        } catch (error) {
+            console.log('Badge update error:', error);
+        }
+    }
+    
+    // Setup periodic cleanup of old sessions
+    setupPeriodicCleanup() {
+        setInterval(() => {
+            this.cleanupOldSessions();
+        }, 300000); // Clean up every 5 minutes
+    }
+    
+    // Clean up old local session references
+    cleanupOldSessions() {
+        const now = Date.now();
+        const maxAge = 24 * 60 * 60 * 1000; // 24 hours
+        
+        for (const [sessionId, sessionData] of this.activeSessions.entries()) {
+            if (now - sessionData.createdAt > maxAge) {
+                this.activeSessions.delete(sessionId);
+            }
+        }
+    }
 }
 
-// Initialize background service
-const backgroundService = new BackgroundService();
+// Initialize enhanced background service
+const backgroundService = new ChatbotBackgroundService();
 
 // Keep service worker alive
 chrome.runtime.onConnect.addListener((port) => {

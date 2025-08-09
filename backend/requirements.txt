@@ -4,3 +4,5 @@ google-generativeai
 python-dotenv
 pydantic
 python-multipart
+langchain
+langchain-google-genai

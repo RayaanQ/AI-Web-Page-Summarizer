@@ -7,11 +7,12 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>🤖 AI Web Summarizer</h1>
+            <h1>🤖 AI Web Chatbot</h1>
+            <p class="subtitle">Ask questions about this page</p>
         </div>
         
-        <div class="controls">
-            
+        <!-- Initial Controls (shown before first summary) -->
+        <div id="initial-controls" class="controls">
             <div class="form-group">
                 <label for="length">Summary Length:</label>
                 <select id="length">
@@ -22,62 +23,88 @@
             </div>
             
             <button id="summarize-btn" class="btn-primary">
-                📄 Summarize This Page
+                📄 Analyze & Start Chat
             </button>
         </div>
         
-        <div class="content">
-            <div id="loading" class="loading hidden">
-                <div class="spinner"></div>
-                <p>Analyzing page content...</p>
+        <!-- Chat Interface (shown after initial summary) -->
+        <div id="chat-interface" class="chat-interface hidden">
+            <div class="chat-header">
+                <h3 id="page-title">Chat about this page</h3>
+                <button id="new-chat-btn" class="btn-icon" title="Start New Chat">🔄</button>
             </div>
             
-            <div id="error" class="error hidden">
-                <h3>❌ Error</h3>
-                <p id="error-message"></p>
-                <button id="retry-btn" class="btn-secondary">Try Again</button>
+            <div id="chat-messages" class="chat-messages">
+                <!-- Messages will be dynamically added here -->
             </div>
             
-            <div id="result" class="result hidden">
-                <div class="result-header">
-                    <h3>📋 Summary</h3>
-                    <div class="meta">
-                        <span id="word-count"></span>
-                        <span id="provider-used"></span>
-                    </div>
+            <!-- Suggested Questions -->
+            <div id="suggested-questions" class="suggested-questions hidden">
+                <div class="suggestions-header">
+                    <span>💡 Suggested questions:</span>
                 </div>
-                <div id="summary-text" class="summary"></div>
-                <div class="result-actions">
-                    <button id="copy-btn" class="btn-secondary">📋 Copy</button>
-                    <button id="new-summary-btn" class="btn-secondary">🔄 New Summary</button>
+                <div id="suggestions-list" class="suggestions-list">
+                    <!-- Dynamic suggestions will be added here -->
                 </div>
             </div>
             
-            <div id="welcome" class="welcome">
-                <h3>Welcome! 👋</h3>
-                <p>This extension helps you quickly understand webpage content using AI.</p>
-                <div class="features">
-                    <div class="feature">
-                        <span class="feature-icon">⚡</span>
-                        <span>Fast AI-powered summaries</span>
-                    </div>
-                    <div class="feature">
-                        <span class="feature-icon">🎯</span>
-                        <span>Extracts key points automatically</span>
-                    </div>
-                    <div class="feature">
-                        <span class="feature-icon">🔧</span>
-                        <span>Customizable length & provider</span>
-                    </div>
+            <!-- Chat Input -->
+            <div class="chat-input">
+                <div class="input-container">
+                    <input 
+                        type="text" 
+                        id="message-input" 
+                        placeholder="Ask a question about this page..." 
+                        maxlength="500"
+                    >
+                    <button id="send-btn" class="btn-send" disabled>
+                        <span class="send-icon">➤</span>
+                    </button>
                 </div>
-                <p class="tip"><strong>Tip:</strong> Click "Summarize This Page" to get started!</p>
+                <div class="char-counter">
+                    <span id="char-count">0</span>/500
+                </div>
             </div>
         </div>
         
+        <!-- Loading States -->
+        <div id="loading" class="loading hidden">
+            <div class="spinner"></div>
+            <p id="loading-text">Analyzing page content...</p>
+        </div>
+        
+        <div id="error" class="error hidden">
+            <h3>❌ Error</h3>
+            <p id="error-message"></p>
+            <button id="retry-btn" class="btn-secondary">Try Again</button>
+        </div>
+        
+        <!-- Welcome Screen -->
+        <div id="welcome" class="welcome">
+            <h3>Welcome! 👋</h3>
+            <p>This extension creates an interactive AI chatbot for any webpage.</p>
+            <div class="features">
+                <div class="feature">
+                    <span class="feature-icon">💬</span>
+                    <span>Ask questions about the page content</span>
+                </div>
+                <div class="feature">
+                    <span class="feature-icon">🎯</span>
+                    <span>Get suggested follow-up questions</span>
+                </div>
+                <div class="feature">
+                    <span class="feature-icon">🧠</span>
+                    <span>Maintains conversation context</span>
+                </div>
+            </div>
+            <p class="tip"><strong>Tip:</strong> Click "Analyze & Start Chat" to begin!</p>
+        </div>
+        
         <div class="footer">
-            <p>Powered by Google Gemini</p>
+            <p>Powered by Google Gemini • <span id="session-info"></span></p>
         </div>
     </div>
+    
     <script src="../libs/marked.min.js"></script>
     <script src="popup.js"></script>
 </body>
