@@ -1,6 +1,19 @@
+# NEW: Added source attribution models
 from pydantic import BaseModel
 from typing import Optional, Literal, List, Dict, Any
 from datetime import datetime
+
+# NEW: Source model for RAG attribution
+class Source(BaseModel):
+    url: str
+    title: str
+    content: str
+
+# NEW: Media source model
+class MediaSource(BaseModel):
+    type: Literal["pdf", "image", "video"]
+    url: str
+    content_length: int
 
 # Request Models
 class SummarizeRequest(BaseModel):
@@ -21,13 +34,15 @@ class SummarizeResponse(BaseModel):
     success: bool
     session_id: str
     followup_questions: List[str]
+    media_sources: List[MediaSource] = []  # NEW: Media sources extracted
 
 class ChatResponse(BaseModel):
     response: str
     followup_questions: List[str]
     session_id: str
     success: bool
-
+    sources: List[Source] = []  # NEW: RAG sources
+    
 class ConversationMessage(BaseModel):
     role: Literal["user", "assistant"]
     content: str

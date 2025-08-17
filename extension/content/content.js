@@ -1,7 +1,5 @@
-//Content Script file that runs on all web pages to provide content extraction capabilities. Enhanced content extraction utility and Provides better content detection and cleaning
-
-// Enhanced Content Script for Better Q&A Support
-// Provides improved content extraction and analysis capabilities
+//Enhanced Content Script for Better Q&A Support with Media Detection
+//Provides improved content extraction and analysis capabilities
 
 (function() {
     'use strict';
@@ -24,7 +22,7 @@
             ];
         }
         
-        // Extract structured content for better Q&A
+        // NEW: Enhanced content extraction with media detection
         extractStructuredContent() {
             const content = this.extractPageContent();
             
@@ -36,10 +34,125 @@
                 lists: this.extractLists(),
                 tables: this.extractTables(),
                 codeBlocks: this.extractCodeBlocks(),
-                quotes: this.extractQuotes()
+                quotes: this.extractQuotes(),
+                mediaElements: this.extractMediaElements()  // NEW: Media extraction
             };
             
             return structuredData;
+        }
+        
+        // NEW: Extract media elements (PDFs, videos, images with text potential)
+        extractMediaElements() {
+            const mediaElements = {
+                pdfs: [],
+                videos: [],
+                images: [],
+                embeds: []
+            };
+            
+            // Extract PDF links and embeds
+            const pdfLinks = document.querySelectorAll('a[href*=".pdf"], embed[src*=".pdf"], object[data*=".pdf"]');
+            pdfLinks.forEach(element => {
+                const url = element.getAttribute('href') || element.getAttribute('src') || element.getAttribute('data');
+                if (url) {
+                    mediaElements.pdfs.push({
+                        url: this.resolveUrl(url),
+                        title: element.textContent.trim() || element.getAttribute('title') || 'PDF Document',
+                        type: 'pdf'
+                    });
+                }
+            });
+            
+            // Extract video elements
+            const videoSelectors = [
+                'video[src]',
+                'iframe[src*="youtube.com"]',
+                'iframe[src*="youtu.be"]',
+                'iframe[src*="vimeo.com"]',
+                'iframe[src*="dailymotion.com"]',
+                'embed[src*="youtube.com"]',
+                'embed[src*="vimeo.com"]'
+            ];
+            
+            videoSelectors.forEach(selector => {
+                const videos = document.querySelectorAll(selector);
+                videos.forEach(video => {
+                    const src = video.getAttribute('src');
+                    if (src) {
+                        mediaElements.videos.push({
+                            url: this.resolveUrl(src),
+                            title: video.getAttribute('title') || video.textContent.trim() || 'Video Content',
+                            type: this.getVideoType(src),
+                            element: video.tagName.toLowerCase()
+                        });
+                    }
+                });
+            });
+            
+            // Extract images that might contain text (larger images, diagrams, etc.)
+            const images = document.querySelectorAll('img[src]');
+            images.forEach(img => {
+                const src = img.getAttribute('src');
+                const alt = img.getAttribute('alt') || '';
+                const width = img.naturalWidth || parseInt(img.getAttribute('width')) || 0;
+                const height = img.naturalHeight || parseInt(img.getAttribute('height')) || 0;
+                
+                // Focus on larger images or those with text-related keywords
+                const textKeywords = ['chart', 'graph', 'diagram', 'screenshot', 'document', 'text', 'infographic', 'table'];
+                const hasTextKeywords = textKeywords.some(keyword => 
+                    alt.toLowerCase().includes(keyword) || 
+                    src.toLowerCase().includes(keyword)
+                );
+                
+                if ((width > 300 && height > 200) || hasTextKeywords) {
+                    mediaElements.images.push({
+                        url: this.resolveUrl(src),
+                        alt: alt,
+                        title: img.getAttribute('title') || alt || 'Image Content',
+                        width: width,
+                        height: height,
+                        likelyContainsText: hasTextKeywords || (width > 400 && height > 300)
+                    });
+                }
+            });
+            
+            // Extract other embeds
+            const embeds = document.querySelectorAll('iframe:not([src*="youtube"]):not([src*="vimeo"]), embed:not([src*=".pdf"])');
+            embeds.forEach(embed => {
+                const src = embed.getAttribute('src');
+                if (src) {
+                    mediaElements.embeds.push({
+                        url: this.resolveUrl(src),
+                        title: embed.getAttribute('title') || 'Embedded Content',
+                        type: 'embed'
+                    });
+                }
+            });
+            
+            return mediaElements;
+        }
+        
+        // NEW: Helper to determine video type
+        getVideoType(url) {
+            if (url.includes('youtube.com') || url.includes('youtu.be')) return 'youtube';
+            if (url.includes('vimeo.com')) return 'vimeo';
+            if (url.includes('dailymotion.com')) return 'dailymotion';
+            if (url.endsWith('.mp4') || url.endsWith('.webm') || url.endsWith('.ogg')) return 'direct';
+            return 'unknown';
+        }
+        
+        // NEW: Helper to resolve relative URLs
+        resolveUrl(url) {
+            if (url.startsWith('http://') || url.startsWith('https://')) {
+                return url;
+            }
+            if (url.startsWith('//')) {
+                return window.location.protocol + url;
+            }
+            if (url.startsWith('/')) {
+                return window.location.origin + url;
+            }
+            return new URL(url, window.location.href).href;
         }
         
         // Extract headings for topic structure

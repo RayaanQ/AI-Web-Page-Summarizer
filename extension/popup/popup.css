@@ -12,7 +12,7 @@ body {
 
 .container {
     width: 380px;
-    min-height: 600px;
+    min-height: 950px;
     background: white;
     display: flex;
     flex-direction: column;
@@ -357,6 +357,11 @@ select:focus {
     text-align: center;
     border-top: 1px solid #eee;
     background: #f8f9fa;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 60px;
 }
 
 .footer p {
@@ -391,7 +396,8 @@ select:focus {
 .chat-interface {
     display: flex;
     flex-direction: column;
-    height: 500px;
+    height: 620px;
+    justify-content: space-between;
 }
 
 .chat-header {
@@ -436,12 +442,15 @@ select:focus {
 
 .chat-messages {
     flex: 1;
+    min-height: 320px;
     overflow-y: auto;
-    padding: 20px;
+    padding: 10px;
+    padding-bottom: 70px;
     display: flex;
     flex-direction: column;
     gap: 16px;
     background: #fafafa;
+    box-sizing: border-box;
 }
 
 .message {
@@ -502,8 +511,108 @@ select:focus {
     }
 }
 
+/* NEW: Sources section styling */
+.sources-section {
+    padding: 15px 20px;
+    border-top: 1px solid #e0e0e0;
+    background: #f8f9fa;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.sources-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.sources-toggle {
+    background: none;
+    border: none;
+    color: #667eea;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 6px;
+    transition: background-color 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.sources-toggle:hover {
+    background: rgba(102, 126, 234, 0.1);
+}
+
+.sources-count {
+    background: #667eea;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 500;
+}
+
+.sources-list {
+    margin-top: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.source-item {
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 12px;
+    transition: all 0.2s;
+}
+
+.source-item:hover {
+    border-color: #667eea;
+    transform: translateX(2px);
+}
+
+.source-title {
+    font-weight: 600;
+    color: #333;
+    font-size: 13px;
+    margin-bottom: 4px;
+    line-height: 1.3;
+}
+
+.source-url {
+    color: #667eea;
+    font-size: 11px;
+    text-decoration: none;
+    display: block;
+    margin-bottom: 6px;
+    word-break: break-all;
+}
+
+.source-url:hover {
+    text-decoration: underline;
+}
+
+.source-snippet {
+    color: #666;
+    font-size: 12px;
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
 /* Suggested Questions */
 .suggested-questions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 16px;
+    margin-bottom: 40px;
     padding: 15px 20px;
     border-top: 1px solid #e0e0e0;
     background: #f8f9fa;
@@ -514,12 +623,14 @@ select:focus {
     color: #666;
     font-weight: 500;
     margin-bottom: 10px;
+    width: 100%;
 }
 
 .suggestions-list {
     display: flex;
     flex-direction: column;
     gap: 8px;
+    width: 100%;
 }
 
 .suggestion-btn {
@@ -652,20 +763,24 @@ select:focus {
 }
 
 /* Scrollbar styling */
-.chat-messages::-webkit-scrollbar {
+.chat-messages::-webkit-scrollbar,
+.sources-list::-webkit-scrollbar {
     width: 6px;
 }
 
-.chat-messages::-webkit-scrollbar-track {
+.chat-messages::-webkit-scrollbar-track,
+.sources-list::-webkit-scrollbar-track {
     background: #f1f1f1;
 }
 
-.chat-messages::-webkit-scrollbar-thumb {
+.chat-messages::-webkit-scrollbar-thumb,
+.sources-list::-webkit-scrollbar-thumb {
     background: #c1c1c1;
     border-radius: 3px;
 }
 
-.chat-messages::-webkit-scrollbar-thumb:hover {
+.chat-messages::-webkit-scrollbar-thumb:hover,
+.sources-list::-webkit-scrollbar-thumb:hover {
     background: #a8a8a8;
 }
 
@@ -681,51 +796,4 @@ select:focus {
 #session-info {
     font-size: 10px;
     opacity: 0.8;
-}
-
-/* Medium vertical increase — good balance */
-.container { min-height: 740px; }      /* larger popup */
-.chat-interface { height: 620px; }     /* room for messages + input + suggestions */
-.chat-messages {
-   flex: 1; /* Take up all available space between header and footer */
-    overflow-y: auto;
-    padding: 10px;
-    padding-bottom: 70px; /* equal to footer height so last message is visible */
-    box-sizing: border-box;
-}
-
-
-/* Keep suggested questions and footer separate */
-.suggested-questions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-top: 16px;
-    margin-bottom: 40px; /* space above footer */
-}
-
-/* Footer styles */
-.footer {
-  flex-shrink: 0;
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    background: #fff;
-    border-top: 1px solid #ccc;
-    height: 60px;
-}
-
-/* Make sure footer text wraps nicely */
-.footer span {
-    display: block;
-    margin: 2px 0;
-    text-align: center;
-}
-
-/* Prevent overlap in small popups */
-.chat-interface {
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
 }

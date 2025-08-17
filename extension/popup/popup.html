@@ -38,6 +38,19 @@
                 <!-- Messages will be dynamically added here -->
             </div>
             
+            <!-- NEW: Sources section -->
+            <div id="sources-section" class="sources-section hidden">
+                <div class="sources-header">
+                    <button id="sources-toggle" class="sources-toggle">
+                        📚 <span id="sources-toggle-text">Show Sources</span>
+                        <span id="sources-count" class="sources-count hidden">(0)</span>
+                    </button>
+                </div>
+                <div id="sources-list" class="sources-list hidden">
+                    <!-- Dynamic sources will be added here -->
+                </div>
+            </div>
+            
             <!-- Suggested Questions -->
             <div id="suggested-questions" class="suggested-questions hidden">
                 <div class="suggestions-header">
@@ -82,11 +95,19 @@
         <!-- Welcome Screen -->
         <div id="welcome" class="welcome">
             <h3>Welcome! 👋</h3>
-            <p>This extension creates an interactive AI chatbot for any webpage.</p>
+            <p>This extension creates an interactive AI chatbot for any webpage with enhanced features.</p>
             <div class="features">
                 <div class="feature">
                     <span class="feature-icon">💬</span>
                     <span>Ask questions about the page content</span>
+                </div>
+                <div class="feature">
+                    <span class="feature-icon">🔍</span>
+                    <span>Get additional info from external sources</span>
+                </div>
+                <div class="feature">
+                    <span class="feature-icon">📄</span>
+                    <span>Auto-extract text from PDFs and images</span>
                 </div>
                 <div class="feature">
                     <span class="feature-icon">🎯</span>
@@ -101,7 +122,7 @@
         </div>
         
         <div class="footer">
-            <p>Powered by Google Gemini • <span id="session-info"></span></p>
+            <p>Powered by Google Gemini + Tavily • <span id="session-info"></span></p>
         </div>
     </div>
     

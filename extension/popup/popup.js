@@ -62,6 +62,8 @@ class WebSummarizerChatbot {
         this.currentPageData = null;
         this.currentSession = null;
         this.isLoading = false;
+        this.currentSources = [];
+        this.sourcesVisible = false;
         
         this.init();
     }
@@ -87,6 +89,11 @@ class WebSummarizerChatbot {
             newChatBtn: document.getElementById('new-chat-btn'),
             suggestedQuestions: document.getElementById('suggested-questions'),
             suggestionsList: document.getElementById('suggestions-list'),
+            sourcesSection: document.getElementById('sources-section'),
+            sourcesToggle: document.getElementById('sources-toggle'),
+            sourcesToggleText: document.getElementById('sources-toggle-text'),
+            sourcesCount: document.getElementById('sources-count'),
+            sourcesList: document.getElementById('sources-list'),
             loading: document.getElementById('loading'),
             loadingText: document.getElementById('loading-text'),
             error: document.getElementById('error'),
@@ -105,6 +112,9 @@ class WebSummarizerChatbot {
         this.elements.newChatBtn.addEventListener('click', () => this.handleNewChat());
         this.elements.retryBtn.addEventListener('click', () => this.handleRetry());
         this.elements.length.addEventListener('change', () => this.saveSettings());
+        
+        // Sources toggle event listener
+        this.elements.sourcesToggle.addEventListener('click', () => this.toggleSources());
 
         // Enable/disable send button on input
         this.elements.messageInput.addEventListener('input', () => {
@@ -172,6 +182,15 @@ class WebSummarizerChatbot {
                 this.currentPageData = results[0].result;
                 this.elements.summarizeBtn.disabled = false;
                 this.elements.pageTitle.textContent = this.currentPageData.title;
+                
+                // Show different messages based on content type
+                if (this.currentPageData.url.toLowerCase().includes('.pdf')) {
+                    this.updateWelcomeForContentType('PDF Document');
+                } else if (this.currentPageData.url.includes('youtube.com') || this.currentPageData.url.includes('youtu.be')) {
+                    this.updateWelcomeForContentType('YouTube Video');
+                } else {
+                    this.updateWelcomeForContentType('Web Page');
+                }
             } else {
                 throw new Error('Could not extract page content');
             }
@@ -182,17 +201,41 @@ class WebSummarizerChatbot {
         }
     }
     
+    updateWelcomeForContentType(contentType) {
+        const welcomeElement = this.elements.welcome.querySelector('p');
+        if (welcomeElement) {
+            welcomeElement.textContent = `This extension creates an interactive AI chatbot for any ${contentType.toLowerCase()} with enhanced features.`;
+        }
+    }
+    
     async handleInitialSummarize() {
         if (!this.currentPageData) {
             this.showError('No page content available. Please refresh and try again.');
             return;
         }
-        if (this.currentPageData.wordCount < 50) {
-            this.showError('Page content is too short to analyze effectively.');
-            return;
+        
+        // Enhanced content validation
+        const minContentLength = this.currentPageData.url.toLowerCase().includes('.pdf') ? 10 : 50;
+        if (this.currentPageData.wordCount < minContentLength) {
+            if (this.currentPageData.url.includes('youtube.com') || this.currentPageData.url.includes('youtu.be')) {
+                this.showLoading('Extracting transcript from YouTube video...');
+            } else if (this.currentPageData.url.toLowerCase().includes('.pdf')) {
+                this.showLoading('Extracting text from PDF document...');
+            } else {
+                this.showError('Page content appears to be too short to analyze effectively. Please try a different page.');
+                return;
+            }
+        } else {
+            this.showLoading('Analyzing page content and extracting media...');
         }
-        this.showLoading('Analyzing page and setting up chat...');
+        
         try {
+            console.log('Sending content for analysis:', {
+                contentLength: this.currentPageData.content.length,
+                wordCount: this.currentPageData.wordCount,
+                url: this.currentPageData.url
+            });
+            
             const response = await this.callSummarizeAPI({
                 content: this.currentPageData.content,
                 title: this.currentPageData.title,
@@ -200,7 +243,9 @@ class WebSummarizerChatbot {
                 summary_length: this.elements.length.value
             });
             
-            // Store session info BEFORE displaying suggested questions
+            console.log('API response received:', response);
+            
+            // Store session info BEFORE displaying
             this.currentSession = {
                 id: response.session_id,
                 title: this.currentPageData.title
@@ -213,6 +258,12 @@ class WebSummarizerChatbot {
             // Add initial summary as first message
             this.addMessage('assistant', response.summary);
             
+            // Handle media sources if present
+            if (response.media_sources && response.media_sources.length > 0) {
+                console.log('Media sources found:', response.media_sources);
+                this.displayMediaSources(response.media_sources);
+            }
+            
             // Show follow-up questions
             this.showSuggestedQuestions(response.followup_questions);
             
@@ -220,8 +271,16 @@ class WebSummarizerChatbot {
             
         } catch (error) {
             console.error('Initial analysis error:', error);
-            this.showError(error.message || 'Failed to analyze page. Please try again.');
-        } finally{
+            let errorMessage = 'Failed to analyze content. Please try again.';
+            
+            if (error.message.includes('too short')) {
+                errorMessage = 'The content appears to be too short to summarize. This might happen with PDFs that contain mostly images, or videos without transcripts available. Please try a different page.';
+            } else if (error.message.includes('timeout') || error.message.includes('network')) {
+                errorMessage = 'Network timeout occurred. Please check your connection and try again.';
+            }
+            
+            this.showError(errorMessage);
+        } finally {
             this.setLoadingState(false);
             this.hideLoading();
         }
@@ -240,15 +299,24 @@ class WebSummarizerChatbot {
         this.elements.sendBtn.disabled = true;
         
         this.hideSuggestedQuestions();
-        this.showLoading('Thinking...');
-
+        this.showLoading('Thinking and searching for additional information...');
         
         try {
             const response = await this.callChatAPI({
                 session_id: this.currentSession.id,
                 message: message
             });
+            
             this.addMessage('assistant', response.response);
+            
+            // Handle sources from RAG
+            if (response.sources && response.sources.length > 0) {
+                this.currentSources = response.sources;
+                this.updateSourcesDisplay();
+            } else {
+                this.hideSources();
+            }
+            
             this.showSuggestedQuestions(response.followup_questions);
         } catch (error) {
             console.error('Chat error:', error);
@@ -259,7 +327,6 @@ class WebSummarizerChatbot {
         }
     }
     
-    // When user clicks a suggested question, fill input and enable send button
     handleSuggestionClick(question) {
         this.elements.messageInput.value = question;
         this.elements.charCount.textContent = question.length;
@@ -271,8 +338,10 @@ class WebSummarizerChatbot {
     async handleNewChat() {
         if (confirm('Start a new chat? This will clear the current conversation.')) {
             this.currentSession = null;
+            this.currentSources = [];
             this.elements.chatMessages.innerHTML = '';
             this.hideSuggestedQuestions();
+            this.hideSources();
             this.showInitialControls();
         }
     }
@@ -286,17 +355,158 @@ class WebSummarizerChatbot {
         }
     }
     
+    toggleSources() {
+        this.sourcesVisible = !this.sourcesVisible;
+        
+        if (this.sourcesVisible) {
+            this.elements.sourcesList.classList.remove('hidden');
+            this.elements.sourcesToggleText.textContent = 'Hide Sources';
+        } else {
+            this.elements.sourcesList.classList.add('hidden');
+            this.elements.sourcesToggleText.textContent = 'Show Sources';
+        }
+    }
+    
+    updateSourcesDisplay() {
+        if (!this.currentSources || this.currentSources.length === 0) {
+            this.hideSources();
+            return;
+        }
+        
+        // Show sources section
+        this.elements.sourcesSection.classList.remove('hidden');
+        
+        // Update count
+        this.elements.sourcesCount.textContent = `(${this.currentSources.length})`;
+        this.elements.sourcesCount.classList.remove('hidden');
+        
+        // Clear and populate sources list
+        this.elements.sourcesList.innerHTML = '';
+        
+        this.currentSources.forEach((source, index) => {
+            const sourceItem = document.createElement('div');
+            sourceItem.className = 'source-item';
+            
+            sourceItem.innerHTML = `
+                <div class="source-title">${this.escapeHtml(source.title || 'External Source')}</div>
+                <a href="${this.escapeHtml(source.url)}" target="_blank" class="source-url" title="Open in new tab">
+                    ${this.truncateUrl(source.url, 50)}
+                </a>
+                <div class="source-snippet">${this.escapeHtml(source.content || 'No preview available')}</div>
+            `;
+            
+            this.elements.sourcesList.appendChild(sourceItem);
+        });
+        
+        // Reset sources visibility
+        if (!this.sourcesVisible) {
+            this.elements.sourcesList.classList.add('hidden');
+            this.elements.sourcesToggleText.textContent = 'Show Sources';
+        }
+    }
+    
+    hideSources() {
+        this.elements.sourcesSection.classList.add('hidden');
+        this.currentSources = [];
+        this.sourcesVisible = false;
+    }
+    
+    displayMediaSources(mediaSources) {
+        if (!mediaSources || mediaSources.length === 0) return;
+        
+        // Create a summary message about extracted media
+        const mediaTypes = [...new Set(mediaSources.map(source => source.type))];
+        const mediaMessage = `📁 Extracted content from ${mediaSources.length} media file(s): ${mediaTypes.join(', ')}`;
+        
+        // Add as a system-style message
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'message system';
+        messageDiv.style.alignSelf = 'center';
+        messageDiv.style.maxWidth = '100%';
+        
+        const contentDiv = document.createElement('div');
+        contentDiv.className = 'message-content';
+        contentDiv.style.background = '#e8f4f8';
+        contentDiv.style.color = '#1976d2';
+        contentDiv.style.fontSize = '12px';
+        contentDiv.style.fontStyle = 'italic';
+        contentDiv.style.textAlign = 'center';
+        contentDiv.style.borderRadius = '12px';
+        contentDiv.textContent = mediaMessage;
+        
+        messageDiv.appendChild(contentDiv);
+        this.elements.chatMessages.appendChild(messageDiv);
+        
+        setTimeout(() => {
+            this.elements.chatMessages.scrollTop = this.elements.chatMessages.scrollHeight;
+        }, 100);
+    }
+    
+    escapeHtml(text) {
+        const map = {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#039;'
+        };
+        return text.replace(/[&<>"']/g, (m) => map[m]);
+    }
+    
+    truncateUrl(url, maxLength) {
+        if (url.length <= maxLength) return url;
+        
+        try {
+            const urlObj = new URL(url);
+            const domain = urlObj.hostname;
+            const path = urlObj.pathname + urlObj.search;
+            
+            if (domain.length + 5 >= maxLength) {
+                return domain.substring(0, maxLength - 3) + '...';
+            }
+            
+            const availableLength = maxLength - domain.length - 5;
+            const truncatedPath = path.length > availableLength 
+                ? path.substring(0, availableLength) + '...'
+                : path;
+            
+            return domain + truncatedPath;
+        } catch {
+            return url.substring(0, maxLength - 3) + '...';
+        }
+    }
+    
     async callSummarizeAPI(data) {
+        console.log('Calling summarize API with data:', data);
+
+        if ((!data.content || data.content.trim().length === 0) && data.url.endsWith('.pdf')) {
+        console.log("No text found, fetching PDF content...");
+        try {
+            const pdfText = await fetch(`http://localhost:8000/extract-pdf?url=${encodeURIComponent(data.url)}`);
+            data.content = await pdfText.text();
+            console.log("PDF text extracted from backend.");
+        } catch (err) {
+            console.error("Failed to fetch PDF text:", err);
+        }
+    }
+        
         const response = await fetch(`${this.apiUrl}/summarize`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
         });
+        
+        console.log('API response status:', response.status);
+        
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
+            console.error('API Error:', errorData);
             throw new Error(errorData.detail || `API Error: ${response.status}`);
         }
-        return await response.json();
+        
+        const result = await response.json();
+        console.log('API response data:', result);
+        return result;
     }
     
     async callChatAPI(data) {
@@ -305,10 +515,12 @@ class WebSummarizerChatbot {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
         });
+        
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
             throw new Error(errorData.detail || `Chat Error: ${response.status}`);
         }
+        
         return await response.json();
     }
     
@@ -374,6 +586,7 @@ class WebSummarizerChatbot {
     showInitialControls() {
         this.hideAllStates();
         this.elements.initialControls.classList.remove('hidden');
+        this.elements.welcome.classList.remove('hidden');
     }
     
     showLoading(text = 'Analyzing page content...') {

@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 import threading
 
 class SessionManager:
-    """Manages chat sessions and conversation history in memory"""
+    """Manages chat sessions and conversation history in memory with media source support"""
     
     def __init__(self, session_timeout_hours: int = 24):
         self.sessions: Dict[str, Dict] = {}
@@ -24,7 +24,8 @@ class SessionManager:
                 "url": url,
                 "created_at": datetime.now(),
                 "last_activity": datetime.now(),
-                "conversation": []
+                "conversation": [],
+                "media_sources": []  # NEW: Store media sources for the session
             }
         
         return session_id
@@ -54,6 +55,25 @@ class SessionManager:
                 self.sessions[session_id]["last_activity"] = datetime.now()
                 return True
             return False
+    
+    # NEW: Add media sources to a session
+    def add_media_sources(self, session_id: str, media_sources: List[Dict]) -> bool:
+        """Add media sources to a session"""
+        
+        with self.lock:
+            if session_id in self.sessions:
+                self.sessions[session_id]["media_sources"].extend(media_sources)
+                return True
+            return False
+    
+    # NEW: Get media sources for a session
+    def get_media_sources(self, session_id: str) -> List[Dict]:
+        """Get media sources for a session"""
+        
+        with self.lock:
+            if session_id in self.sessions:
+                return self.sessions[session_id]["media_sources"].copy()
+            return []
     
     def get_conversation(self, session_id: str) -> List[Dict]:
         """Get conversation history for a session"""
