@@ -25,6 +25,12 @@ An intelligent Chrome extension that summarizes web pages and enables interactiv
 
 ## ⚙️ Backend Setup
 
+### Create a virtual environment for the packages to be stored in the virtual environment
+```bash
+Python -m venv <environment name>
+\<environment name>\Scripts\activate
+```
+
 ### 📁 1. Navigate to the Backend Directory
 ```bash
 cd backend
