@@ -25,7 +25,7 @@ class SessionManager:
                 "created_at": datetime.now(),
                 "last_activity": datetime.now(),
                 "conversation": [],
-                "media_sources": []  # NEW: Store media sources for the session
+                "media_sources": []  # Store media sources for the session
             }
         
         return session_id
@@ -56,7 +56,7 @@ class SessionManager:
                 return True
             return False
     
-    # NEW: Add media sources to a session
+    # Add media sources to a session
     def add_media_sources(self, session_id: str, media_sources: List[Dict]) -> bool:
         """Add media sources to a session"""
         
@@ -66,7 +66,7 @@ class SessionManager:
                 return True
             return False
     
-    # NEW: Get media sources for a session
+    # Get media sources for a session
     def get_media_sources(self, session_id: str) -> List[Dict]:
         """Get media sources for a session"""
         

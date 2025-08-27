@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 from langchain.chat_models import init_chat_model
 from session_manager import SessionManager
 
-# NEW: Import additional libraries for RAG and media extraction
+# Additional libraries for RAG and media extraction
 from langchain_community.tools import TavilySearchResults
 from langchain_community.document_loaders import PyPDFLoader, YoutubeLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
@@ -28,8 +28,8 @@ from pdf2image import convert_from_path
 import os
 from PIL import Image
 import pytesseract
-import whisper  # NEW: For video transcription
-import yt_dlp  # NEW: For video extraction
+import whisper  # For video transcription
+import yt_dlp  # For video extraction
 import youtube_dl
 import hashlib
 from models import *
@@ -60,14 +60,14 @@ session_manager = SessionManager()
 
 # Using Gemini LLM here for our responses through the langchain setup
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")  # NEW: Tavily API key
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")  # NEW: For embeddings
+TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")  # Tavily API key as search engine(RAG)
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")  # For whisper video extraction embeddings(Fallback mechainisms if one method doesnt work)
 
 if not GEMINI_API_KEY:
     raise RuntimeError("GEMINI_API_KEY not set")
-if not TAVILY_API_KEY:  # NEW
+if not TAVILY_API_KEY:  
     logger.warning("TAVILY_API_KEY not set, RAG search disabled")
-if not OPENAI_API_KEY:  # NEW
+if not OPENAI_API_KEY:  
     logger.warning("OPENAI_API_KEY not set, using alternative embeddings")
 
 os.environ["GOOGLE_API_KEY"] = GEMINI_API_KEY
@@ -76,7 +76,7 @@ if TAVILY_API_KEY:
 
 gemini_model = init_chat_model("gemini-2.5-flash", model_provider="google_genai")
 
-# NEW: Initialize RAG components (only if API key available)
+# Tavily internal feature settings
 tavily_tool = None
 if TAVILY_API_KEY:
     try:
@@ -88,7 +88,7 @@ if TAVILY_API_KEY:
     except Exception as e:
         logger.error(f"Failed to initialize Tavily: {e}")
 
-# NEW: Initialize embeddings (fallback to sentence transformers if OpenAI not available)
+# Initialize embeddings (fallback to sentence transformers if OpenAI not available)
 try:
     if OPENAI_API_KEY:
         embeddings = OpenAIEmbeddings()
@@ -105,7 +105,7 @@ text_splitter = RecursiveCharacterTextSplitter(
     length_function=len
 )
 
-# NEW: Initialize Whisper model for audio transcription (optional)
+# Initialize Whisper model for audio transcription (optional fallback mechanism)
 whisper_model = None
 try:
     whisper_model = whisper.load_model("base")
@@ -113,10 +113,10 @@ try:
 except Exception as e:
     logger.warning(f"Failed to load Whisper model: {e}")
 
-# NEW: Global cache for Tavily search results per session
+# Global cache for Tavily search results per session
 tavily_cache = {}
 
-# NEW: Media extraction class
+# This js the Media extraction class
 class MediaExtractor:
     """Extract content from various media types"""
     
@@ -126,7 +126,7 @@ class MediaExtractor:
         try:
             logger.info(f"Attempting to extract PDF from: {pdf_url}")
             
-            # Create temporary file
+            # We create temporary file first
             with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as tmp_file:
                 response = requests.get(pdf_url, timeout=30, headers={
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
@@ -137,7 +137,7 @@ class MediaExtractor:
                 
                 logger.info(f"Downloaded PDF to temporary file: {tmp_file.name}")
                 
-                # Try PyPDFLoader first
+                # Then we try PyPDFLoader next as the first thing
                 try:
                     loader = PyPDFLoader(tmp_file.name)
                     pages = loader.load()
@@ -147,7 +147,7 @@ class MediaExtractor:
                     logger.warning(f"PyPDFLoader failed: {e}, trying OCR fallback")
                     text = ""
                 
-                # If no text or very little text, try OCR
+                # If no text or very little text, we try OCR
                 if len(text) < 100:
                     try:
                         logger.info("Attempting OCR extraction from PDF")
@@ -247,7 +247,7 @@ class MediaExtractor:
             except Exception as loader_error:
                 logger.warning(f"YoutubeLoader failed: {loader_error}")
             
-            # Fallback to yt-dlp for transcript
+            # Fallback to yt-dlp for transcript (This fallback is only working for my application)
             return MediaExtractor.extract_youtube_transcript_ytdlp(clean_url)
             
         except Exception as e:
@@ -301,7 +301,7 @@ class MediaExtractor:
                                     sub_response = requests.get(entry['url'], timeout=30)
                                     vtt_content = sub_response.text
                                     
-                                    # Parse VTT content
+                                    # Parse VTT(Video Text Track is the full form) content
                                     transcript = MediaExtractor.parse_vtt_content(vtt_content)
                                     if transcript and len(transcript) > 50:
                                         logger.info(f"Successfully extracted transcript via yt-dlp: {len(transcript)} characters")
@@ -384,7 +384,7 @@ class MediaExtractor:
             logger.error(f"Whisper transcription error: {str(e)}")
             return ""
 
-# NEW: Enhanced content extraction function
+# Enhanced content extraction function
 async def extract_enhanced_content(url: str, base_content: str) -> Dict[str, Any]:
     """Extract content from webpage including embedded media"""
     extracted_content = {
@@ -483,7 +483,7 @@ async def extract_enhanced_content(url: str, base_content: str) -> Dict[str, Any
             matches = re.findall(pattern, html_content, re.IGNORECASE)
             image_urls.extend([match[0] if isinstance(match, tuple) else match for match in matches])
         
-        image_urls = list(set(image_urls))[:5]  # Limit to 5 images
+        image_urls = list(set(image_urls))[:5]  # 5 images is the limit
         logger.info(f"Found {len(image_urls)} image URLs")
         
         # Process media in parallel
@@ -547,7 +547,7 @@ async def extract_enhanced_content(url: str, base_content: str) -> Dict[str, Any
     
     return extracted_content
 
-# NEW: RAG search function
+# RAG search function using the Tavily search
 async def perform_rag_search(query: str, session_id: str) -> Dict[str, Any]:
     """Perform RAG search using Tavily and return results with sources"""
     
@@ -686,7 +686,7 @@ Question 5 here
 
 Keep each question under 12 words and make them conversational."""
 
-# NEW: Enhanced AI response generation with RAG
+# Enhanced AI response generation with RAG
 async def generate_ai_response_with_rag(messages: List[Dict[str, str]], original_content: str, session_id: str) -> Dict[str, Any]:
     """Generate AI response with RAG integration"""
     
@@ -847,7 +847,7 @@ async def root():
         "active_sessions": session_manager.get_session_count()
     }
 
-# NEW: Enhanced summarize endpoint with media extraction
+# Enhanced summarize endpoint with media extraction
 @app.post("/summarize", response_model=SummarizeResponse)
 async def summarize_content(request: SummarizeRequest, background_tasks: BackgroundTasks):
     """Enhanced summarize endpoint with media extraction and RAG"""
@@ -859,12 +859,12 @@ async def summarize_content(request: SummarizeRequest, background_tasks: Backgro
     logger.info(f"Base content length: {len(request.content)} characters")
     
     try:
-        # NEW: Extract enhanced content including media
+        # Extract enhanced content including media
         enhanced_content_dict = {}
         if request.url:
             enhanced_content_dict = await extract_enhanced_content(request.url, request.content)
         
-        # NEW: Combine all content
+        # Combine all content
         full_content = request.content
         additional_content_parts = []
         
@@ -939,7 +939,7 @@ async def summarize_content(request: SummarizeRequest, background_tasks: Backgro
         logger.error(f"Summarization error: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error during summarization")
 
-# NEW: Enhanced chat endpoint with RAG
+# Enhanced chat endpoint with RAG
 @app.post("/chat", response_model=ChatResponse)
 async def chat_with_content(request: ChatRequest):
     """Handle follow-up questions with RAG integration"""

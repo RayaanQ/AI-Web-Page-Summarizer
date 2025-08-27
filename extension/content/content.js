@@ -22,7 +22,7 @@
             ];
         }
         
-        // NEW: Enhanced content extraction with media detection
+        // Enhanced content extraction with media detection
         extractStructuredContent() {
             const content = this.extractPageContent();
             
@@ -35,13 +35,13 @@
                 tables: this.extractTables(),
                 codeBlocks: this.extractCodeBlocks(),
                 quotes: this.extractQuotes(),
-                mediaElements: this.extractMediaElements()  // NEW: Media extraction
+                mediaElements: this.extractMediaElements()  // Media extraction
             };
             
             return structuredData;
         }
         
-        // NEW: Extract media elements (PDFs, videos, images with text potential)
+        // Extracting media elements here (PDFs, videos, images with text potential)
         extractMediaElements() {
             const mediaElements = {
                 pdfs: [],
@@ -132,7 +132,7 @@
             return mediaElements;
         }
         
-        // NEW: Helper to determine video type
+        // Helper to determine video type
         getVideoType(url) {
             if (url.includes('youtube.com') || url.includes('youtu.be')) return 'youtube';
             if (url.includes('vimeo.com')) return 'vimeo';
@@ -141,7 +141,7 @@
             return 'unknown';
         }
         
-        // NEW: Helper to resolve relative URLs
+        // Helper to resolve relative URLs
         resolveUrl(url) {
             if (url.startsWith('http://') || url.startsWith('https://')) {
                 return url;

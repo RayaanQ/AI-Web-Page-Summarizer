@@ -1,15 +1,15 @@
-# NEW: Added source attribution models
+# Added source attribution models
 from pydantic import BaseModel
 from typing import Optional, Literal, List, Dict, Any
 from datetime import datetime
 
-# NEW: Source model for RAG attribution
+# Source model for RAG attribution
 class Source(BaseModel):
     url: str
     title: str
     content: str
 
-# NEW: Media source model
+# Media source model
 class MediaSource(BaseModel):
     type: Literal["pdf", "image", "video"]
     url: str
